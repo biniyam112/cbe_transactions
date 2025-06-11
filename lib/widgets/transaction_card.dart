@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
 import '../models/transaction.dart';
 
 class TransactionCard extends StatelessWidget {
@@ -20,8 +19,8 @@ class TransactionCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final isIncoming = transaction.amount > 0;
     final isOutgoing = transaction.amount < 0;
-    print(
-        'Transaction amount: \\${transaction.amount}, isIncoming: \\${isIncoming}, isOutgoing: \\${isOutgoing}');
+    debugPrint(
+        'Transaction amount: ${transaction.amount}, isIncoming: $isIncoming, isOutgoing: $isOutgoing');
     final cardColor = theme.cardColor;
     final primaryText = isDark ? Colors.white : const Color(0xFF1a1a1a);
     final secondaryText = isDark ? Colors.white70 : Colors.black54;
@@ -52,7 +51,7 @@ class TransactionCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Amount: ETB ${transaction.amount.toStringAsFixed(2)}',
+                            'Amount: ETB \\${transaction.amount.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
@@ -67,7 +66,7 @@ class TransactionCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Date: ${transaction.date.toString().split('.')[0]}',
+                        'Date: \\${transaction.date.toString().split('.')[0]}',
                         style: TextStyle(fontSize: 15, color: primaryText),
                       ),
                       const SizedBox(height: 4),
@@ -77,54 +76,40 @@ class TransactionCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (transaction.payer != null && transaction.payer!.isNotEmpty)
-                            Flexible(
-                              child: Text(
-                                'Payer: ${transaction.payer}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDark ? Colors.white70 : Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              'Payer: \\${transaction.payer}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? Colors.white70 : Colors.black87,
                               ),
                             ),
                           if (transaction.receiver != null && transaction.receiver!.isNotEmpty)
-                            Flexible(
-                              child: Text(
-                                'Receiver: ${transaction.receiver}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDark ? Colors.white70 : Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              'Receiver: \\${transaction.receiver}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? Colors.white70 : Colors.black87,
                               ),
                             ),
+                          if (transaction.reason != null && transaction.reason!.isNotEmpty)
+                            Text(
+                              'Reason: \\${transaction.reason}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Balance: ETB ${transaction.balance.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF4f6bed),
+                            ),
+                          ),
                         ],
                       ),
-                      Text(
-                        'Service Charge: ETB ${transaction.serviceCharge.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 14, color: secondaryText),
-                      ),
-                      Text(
-                        'VAT: ETB ${transaction.vat.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 14, color: secondaryText),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Balance: ETB ${transaction.balance.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: accentBlue,
-                        ),
-                      ),
-                      if (transaction.reason != null && transaction.reason!.isNotEmpty)
-                        Text(
-                          'Reason: ${transaction.reason}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
                     ],
                   ),
                 ),

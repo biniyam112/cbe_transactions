@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'services/sms_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -42,18 +41,16 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'CBE Transaction History',
       theme: ThemeData(
-        colorScheme: ColorScheme(
+        colorScheme: const ColorScheme(
           brightness: Brightness.light,
-          primary: const Color(0xFF3650af),
+          primary: Color(0xFF3650af),
           onPrimary: Colors.white,
-          secondary: const Color(0xFF4fb542),
+          secondary: Color(0xFF4fb542),
           onSecondary: Colors.white,
-          error: const Color(0xFFd75252),
+          error: Color(0xFFd75252),
           onError: Colors.white,
-          background: const Color(0xFFF6F7FB),
-          onBackground: const Color(0xFF1a1a1a),
           surface: Colors.white,
-          onSurface: const Color(0xFF1a1a1a),
+          onSurface: Color(0xFF1a1a1a),
         ),
         scaffoldBackgroundColor: const Color(0xFFF6F7FB),
         appBarTheme: const AppBarTheme(
@@ -74,17 +71,15 @@ class _MyAppState extends State<MyApp> {
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
-        colorScheme: ColorScheme(
+        colorScheme: const ColorScheme(
           brightness: Brightness.dark,
-          primary: const Color(0xFF3650af),
+          primary: Color(0xFF3650af),
           onPrimary: Colors.white,
-          secondary: const Color(0xFF4fb542),
+          secondary: Color(0xFF4fb542),
           onSecondary: Colors.white,
-          error: const Color(0xFFd75252),
+          error: Color(0xFFd75252),
           onError: Colors.white,
-          background: const Color(0xFF23263a),
-          onBackground: Colors.white,
-          surface: const Color(0xFF292c3c),
+          surface: Color(0xFF23263a),
           onSurface: Colors.white,
         ),
         scaffoldBackgroundColor: const Color(0xFF23263a),
@@ -127,7 +122,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
-  int _currentPage = 0;
   final _scaffoldKey = GlobalKey<ScaffoldMessengerState>();
   String _searchQuery = '';
   final ScrollController _scrollController = ScrollController();
@@ -135,7 +129,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   @override
   void initState() {
     super.initState();
-    print('Initializing app...');
+    debugPrint('Initializing app...');
     _initializeApp();
     _scrollController.addListener(_onScroll);
   }
@@ -168,13 +162,13 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   Future<void> _initializeApp() async {
     try {
-      print('Initializing database...');
+      debugPrint('Initializing database...');
       await _initializeDatabase();
-      print('Requesting permissions...');
+      debugPrint('Requesting permissions...');
       await _requestPermissions();
-      print('Starting SMS listener...');
+      debugPrint('Starting SMS listener...');
       await _startSmsListener();
-      print('App initialization complete');
+      debugPrint('App initialization complete');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -182,7 +176,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       }
       await _loadInitialTransactions();
     } catch (e) {
-      print('Error during initialization: $e');
+      debugPrint('Error during initialization: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -214,16 +208,16 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       database = await sqflite.openDatabase(
         join(await sqflite.getDatabasesPath(), 'transactions_database.db'),
         onCreate: (db, version) {
-          print('Creating database...');
+          debugPrint('Creating database...');
           return db.execute(
             'CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT, amount REAL, serviceCharge REAL, vat REAL, balance REAL, date TEXT, url TEXT, payer TEXT, receiver TEXT, reason TEXT)',
           );
         },
         version: 1,
       );
-      print('Database initialized successfully');
+      debugPrint('Database initialized successfully');
     } catch (e) {
-      print('Error initializing database: $e');
+      debugPrint('Error initializing database: $e');
       rethrow;
     }
   }
@@ -231,7 +225,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Future<void> _loadInitialTransactions() async {
     setState(() {
       transactions = [];
-      _currentPage = 0;
       _hasMore = true;
     });
     await _loadMoreTransactions(reset: true);
@@ -277,10 +270,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Future<void> _startSmsListener() async {
     try {
       _smsService.onNewTransaction = (SmsMessage message) async {
-        print('New transaction received: ${message.body}');
+        debugPrint('New transaction received: ${message.body}');
         final transactionData = await _smsService.parseTransactionSms(message);
         if (transactionData.isNotEmpty) {
-          print('Saving transaction: $transactionData');
+          debugPrint('Saving transaction: $transactionData');
           final exists = await _transactionExists(transactionData);
           if (!exists) {
             await database.transaction((txn) async {
@@ -299,9 +292,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         }
       };
       await _smsService.startListening(_smsService.onNewTransaction!);
-      print('SMS listener started successfully');
+      debugPrint('SMS listener started successfully');
     } catch (e) {
-      print('Error starting SMS listener: $e');
+      debugPrint('Error starting SMS listener: $e');
       rethrow;
     }
   }

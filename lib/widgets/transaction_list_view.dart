@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
-import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import '../models/transaction.dart';
 import '../widgets/transaction_card.dart';
 import '../widgets/transaction_details_sheet.dart';

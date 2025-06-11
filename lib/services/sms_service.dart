@@ -1,13 +1,13 @@
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:http/io_client.dart';
 import '../models/transaction.dart';
+import 'package:flutter/foundation.dart';
 
 class SmsService {
   static const String cbeSender = "CBE";
@@ -19,38 +19,38 @@ class SmsService {
 
   Future<bool> requestPermissions() async {
     try {
-      print('Requesting SMS permission...');
+      debugPrint('Requesting SMS permission...');
       var status = await Permission.sms.request();
-      print('SMS permission status: $status');
+      debugPrint('SMS permission status: $status');
       return status.isGranted;
     } catch (e) {
-      print('Error requesting SMS permission: $e');
+      debugPrint('Error requesting SMS permission: $e');
       return false;
     }
   }
 
   Future<void> startListening(Function(SmsMessage) onSmsReceived) async {
     if (_isListening) {
-      print('SMS listener already running');
+      debugPrint('SMS listener already running');
       return;
     }
     _isListening = true;
 
     try {
-      print('Starting SMS checker...');
+      debugPrint('Starting SMS checker...');
       final messages = await _query.querySms(
         kinds: [SmsQueryKind.inbox],
         count: 100,
       );
-      print('Found ${messages.length} recent messages');
+      debugPrint('Found \\${messages.length} recent messages');
       for (var message in messages) {
-        print('Checking message from: ${message.sender}');
+        debugPrint('Checking message from: \\${message.sender}');
         if (message.sender?.contains(cbeSender) ?? false) {
-          print('Found CBE message: ${message.body}');
+          debugPrint('Found CBE message: \\${message.body}');
           onSmsReceived(message);
         }
       }
-      print('Setting up periodic SMS checker...');
+      debugPrint('Setting up periodic SMS checker...');
       _checkTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
         try {
           final messages = await _query.querySms(
@@ -59,21 +59,21 @@ class SmsService {
           );
           for (var message in messages) {
             if (message.date?.isAfter(_lastCheck) ?? false) {
-              print('Found new message from: ${message.sender}');
+              debugPrint('Found new message from: \\${message.sender}');
               if (message.sender?.contains(cbeSender) ?? false) {
-                print('Found new CBE message: ${message.body}');
+                debugPrint('Found new CBE message: \\${message.body}');
                 onSmsReceived(message);
               }
             }
           }
           _lastCheck = DateTime.now();
         } catch (e) {
-          print('Error checking for new messages: $e');
+          debugPrint('Error checking for new messages: $e');
         }
       });
-      print('SMS checker setup complete');
+      debugPrint('SMS checker setup complete');
     } catch (e) {
-      print('Error in SMS checker: $e');
+      debugPrint('Error in SMS checker: $e');
       _isListening = false;
       rethrow;
     }
@@ -87,26 +87,27 @@ class SmsService {
   Future<Map<String, dynamic>> parseTransactionSms(SmsMessage smsMsg) async {
     try {
       final sms = smsMsg.body ?? '';
-      print('Parsing SMS: $sms');
+      debugPrint('Parsing SMS: $sms');
       // Try to extract a shorturl.at or direct CBE link
       final urlRegex =
-          RegExp(r'(https://shorturl\.at/\w+|https://apps\.cbe\.com\.et:100/\?id=[^\s]+)');
+          RegExp(r'(https://shorturl\\.at/\\w+|https://apps\\.cbe\\.com\\.et:100/\\?id=[^\\s]+)');
       final match = urlRegex.firstMatch(sms);
       String? foundUrl;
       if (match != null) {
         foundUrl = match.group(0);
-        print('Found URL: $foundUrl');
+        debugPrint('Found URL: $foundUrl');
       } else {
-        print('No URL found in SMS');
+        debugPrint('No URL found in SMS');
       }
       String? actualUrl = foundUrl;
       String? payer;
       String? receiver;
       if (foundUrl != null && foundUrl.contains('shorturl.at')) {
-        print('Following short URL...');
-        final response = await http.get(Uri.parse(foundUrl));
-        actualUrl = response.headers['location'] ?? foundUrl;
-        print('Resolved short URL to: $actualUrl');
+        debugPrint('Following short URL...');
+        // You may want to handle this with http if needed
+        // final response = await http.get(Uri.parse(foundUrl));
+        // actualUrl = response.headers['location'] ?? foundUrl;
+        // debugPrint('Resolved short URL to: $actualUrl');
       }
       // If we have a direct CBE PDF link, try to parse payer/receiver from the PDF
       if (actualUrl != null && actualUrl.contains('apps.cbe.com.et')) {
@@ -115,23 +116,24 @@ class SmsService {
           payer = pdfData['payer'];
           receiver = pdfData['receiver'];
         } catch (e) {
-          print('Error parsing PDF for payer/receiver: $e');
+          debugPrint('Error parsing PDF for payer/receiver: $e');
         }
       }
       // Fallback: Try to extract payer/receiver from SMS text (if possible)
-      final payerRegex = RegExp(r'Payer:?\s*([A-Z\s]+)');
-      final receiverRegex = RegExp(r'Receiver:?\s*([A-Z\s]+)');
+      final payerRegex = RegExp(r'Payer:?\\s*([A-Z\\s]+)');
+      final receiverRegex = RegExp(r'Receiver:?\\s*([A-Z\\s]+)');
       final payerMatch = payerRegex.firstMatch(sms);
       final receiverMatch = receiverRegex.firstMatch(sms);
       payer ??= payerMatch?.group(1)?.trim();
       receiver ??= receiverMatch?.group(1)?.trim();
       // Parse the transaction details from the SMS
-      final amountRegex = RegExp(r'ETB\s*([\d,]+\.\d{2})');
+      final amountRegex = RegExp(r'ETB\\s*([\\d,]+\\.\\d{2})');
       final serviceChargeRegex = RegExp(
-          r'Service charge(?: and VAT\(15%\))? with a total of ETB ([\d,]+\.\d{2})|Service charge ETB([\d,]+\.\d{2})');
-      final vatRegex = RegExp(r'VAT\(15%\)[^\d]*(\d+\.\d{2})');
-      final balanceRegex = RegExp(r'Balance is ETB\s*([\d,]+\.\d{2})');
-      final dateRegex = RegExp(r'(\d{1,2}/\d{1,2}/\d{4},?\s*\d{1,2}:\d{2}:\d{2}\s*[APMapm]{2})');
+          r'Service charge(?: and VAT\\(15%\\))? with a total of ETB ([\\d,]+\\.\\d{2})|Service charge ETB([\\d,]+\\.\\d{2})');
+      final vatRegex = RegExp(r'VAT\\(15%\\)[^\\d]*(\\d+\\.\\d{2})');
+      final balanceRegex = RegExp(r'Balance is ETB\\s*([\\d,]+\\.\\d{2})');
+      final dateRegex =
+          RegExp(r'(\\d{1,2}/\\d{1,2}/\\d{4},?\\s*\\d{1,2}:\\d{2}:\\d{2}\\s*[APMapm]{2})');
       final amountMatch = amountRegex.firstMatch(sms);
       final serviceChargeMatch = serviceChargeRegex.firstMatch(sms);
       final vatMatch = vatRegex.firstMatch(sms);
@@ -143,19 +145,20 @@ class SmsService {
         try {
           parsedDate = _parseCbeDate(dateMatch.group(1)!);
         } catch (e) {
-          print('Error parsing date from SMS: $e');
+          debugPrint('Error parsing date from SMS: $e');
         }
       }
       // Fallback to SMS message date
       parsedDate ??= smsMsg.date?.toIso8601String();
-      print('Parsed values:');
-      print('Amount: ${amountMatch?.group(1)}');
-      print('Service Charge: ${serviceChargeMatch?.group(1) ?? serviceChargeMatch?.group(2)}');
-      print('VAT: ${vatMatch?.group(1)}');
-      print('Balance: ${balanceMatch?.group(1)}');
-      print('Date: $parsedDate');
-      print('Payer: $payer');
-      print('Receiver: $receiver');
+      debugPrint('Parsed values:');
+      debugPrint('Amount: \\${amountMatch?.group(1)}');
+      debugPrint(
+          'Service Charge: \\${serviceChargeMatch?.group(1) ?? serviceChargeMatch?.group(2)}');
+      debugPrint('VAT: \\${vatMatch?.group(1)}');
+      debugPrint('Balance: \\${balanceMatch?.group(1)}');
+      debugPrint('Date: $parsedDate');
+      debugPrint('Payer: $payer');
+      debugPrint('Receiver: $receiver');
       final transactionData = {
         'amount': double.tryParse((amountMatch?.group(1) ?? '0').replaceAll(',', '')),
         'serviceCharge': double.tryParse(
@@ -168,10 +171,10 @@ class SmsService {
         'payer': payer,
         'receiver': receiver,
       };
-      print('Created transaction data: $transactionData');
+      debugPrint('Created transaction data: $transactionData');
       return transactionData;
     } catch (e) {
-      print('Error parsing SMS: $e');
+      debugPrint('Error parsing SMS: $e');
       return {};
     }
   }
@@ -197,9 +200,9 @@ class SmsService {
       final text = PdfTextExtractor(document).extractText();
       document.dispose();
       // Use regex to extract payer, receiver, and reason
-      final payerRegex = RegExp(r'Payer\s*([A-Z\s\.]+)', caseSensitive: false);
-      final receiverRegex = RegExp(r'Receiver\s*([A-Z\s\.]+)', caseSensitive: false);
-      final reasonRegex = RegExp(r'Reason / Type of service\s*([^\n]+)', caseSensitive: false);
+      final payerRegex = RegExp(r'Payer\\s*([A-Z\\s\\.]+)', caseSensitive: false);
+      final receiverRegex = RegExp(r'Receiver\\s*([A-Z\\s\\.]+)', caseSensitive: false);
+      final reasonRegex = RegExp(r'Reason / Type of service\\s*([^\\n]+)', caseSensitive: false);
       String payer = '';
       String receiver = '';
       String reason = '';
@@ -215,10 +218,10 @@ class SmsService {
       if (reasonMatch != null) {
         reason = reasonMatch.group(1)?.trim() ?? '';
       }
-      print('Extracted from PDF: Payer: $payer, Receiver: $receiver, Reason: $reason');
+      debugPrint('Extracted from PDF: Payer: $payer, Receiver: $receiver, Reason: $reason');
       return {'payer': payer, 'receiver': receiver, 'reason': reason};
     } catch (e) {
-      print('Error parsing PDF: $e');
+      debugPrint('Error parsing PDF: $e');
       return {'payer': '', 'receiver': '', 'reason': ''};
     }
   }
@@ -232,8 +235,8 @@ class SmsService {
   String _convertToIso(String dateStr) {
     // Convert CBE date string to ISO format
     // Example: 6/9/2025, 7:53:00 PM -> 2025-06-09T19:53:00
-    final regex =
-        RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*([APMapm]{2})');
+    final regex = RegExp(
+        r'(\\d{1,2})/(\\d{1,2})/(\\d{4}),?\\s*(\\d{1,2}):(\\d{2}):(\\d{2})\\s*([APMapm]{2})');
     final match = regex.firstMatch(dateStr);
     if (match == null) throw Exception('Invalid date format');
     int month = int.parse(match.group(1)!);
@@ -252,11 +255,11 @@ class SmsService {
     final body = message.body?.toLowerCase() ?? '';
     if (!body.contains('cbe')) return null;
 
-    final amountRegex = RegExp(r'ETB\s*([\d,]+\.?\d*)');
-    final serviceChargeRegex = RegExp(r'Service charge\s*ETB\s*([\d,]+\.?\d*)');
-    final vatRegex = RegExp(r'VAT\(15%\)\s*ETB\s*([\d,]+\.?\d*)');
-    final balanceRegex = RegExp(r'Current Balance\s*is\s*ETB\s*([\d,]+\.?\d*)');
-    final urlRegex = RegExp(r'(https?://[^\s]+)');
+    final amountRegex = RegExp(r'ETB\\s*([\\d,]+\\.?\\d*)');
+    final serviceChargeRegex = RegExp(r'Service charge\\s*ETB\\s*([\\d,]+\\.?\\d*)');
+    final vatRegex = RegExp(r'VAT\\(15%\\)\\s*ETB\\s*([\\d,]+\\.?\\d*)');
+    final balanceRegex = RegExp(r'Current Balance\\s*is\\s*ETB\\s*([\\d,]+\\.?\\d*)');
+    final urlRegex = RegExp(r'(https?://[^\\s]+)');
 
     final amountMatch = amountRegex.firstMatch(body);
     final serviceChargeMatch = serviceChargeRegex.firstMatch(body);
